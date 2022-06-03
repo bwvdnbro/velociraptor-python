@@ -1441,7 +1441,23 @@ def registration_spherical_overdensities(
 
         return unit, full_name, snake_case
     else:
-        raise RegistrationDoesNotMatchError
+        match_string = "SO/([0-9]*)_crit/([^_]*)"
+        regex = cached_regex(match_string)
+        match = regex.match(field_path)
+        if match:
+            size = int(match.group(1))
+            quantity = match.group(2)
+            ptype = ""
+
+            unit = get_aperture_unit(quantity, unit_system)
+            name = get_particle_property_name_conversion(quantity, ptype)
+
+            full_name = f"{name} ({size} $\\rho_{{\\rm crit}}$)"
+            snake_case = f"{quantity}_{size}_rhocrit".lower()
+
+            return unit, full_name, snake_case
+        else:
+            raise RegistrationDoesNotMatchError
 
 
 def registration_element_masses_in_stars(
