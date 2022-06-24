@@ -38,9 +38,24 @@ class VelociraptorFieldMetadata(object):
     snake_case: str = ""
     # The unit of this field
     unit: unyt.Unit
+    # The component to read
+    component: int = 1
     # The registartion function that matched with this field
     corresponding_registration_function_name: Union[str, None]
     corresponding_registration_function: Union[Callable, None]
+
+    def copy(self, component, ncomponent):
+        cls = self.__class__
+        cpy = cls.__new__(cls)
+        cpy.__dict__.update(self.__dict__)
+        cpy.component = component
+        name_groups = cpy.snake_case.split("_")
+        if ncomponent == 3:
+            name_groups[0] = f"{name_groups[0]}{['x','y','z'][component]}"
+        else:
+            name_groups[0] = f"{name_groups[0]}{component}"
+        cpy.snake_case = "_".join(name_groups)
+        return cpy
 
     def __init__(
         self,
@@ -74,10 +89,11 @@ class VelociraptorFieldMetadata(object):
         """
 
         if self.reader.type == "new":
-            self.unit, self.name, self.snake_case = register_new_catalogue_quantity(
+            self.unit, self.name, self.snake_case, self.corresponding_registration_function_name, self.component = register_new_catalogue_quantity(
                 self.reader, self.path
             )
-            self.corresponding_registration_function_name = self.path
+            self.valid = True
+            self.corresponding_registration_function = register_new_catalogue_quantity
             return
 
         for reg_name, reg in self.registration_functions.items():
@@ -86,12 +102,30 @@ class VelociraptorFieldMetadata(object):
                     field_path=self.path, unit_system=self.units
                 )
                 self.valid = True
+                self.component = 1
                 self.corresponding_registration_function = reg
                 self.corresponding_registration_function_name = reg_name
             except RegistrationDoesNotMatchError:
                 continue
 
         return
+
+
+def get_path_metadata(
+    reader,
+    path: str,
+    registration_functions: Dict[str, Callable],
+    units: VelociraptorUnits,
+):
+    metadata = VelociraptorFieldMetadata(reader, path, registration_functions, units)
+    if metadata.component == 1:
+        metadata.component = 0
+        return [metadata]
+    metadata_list = []
+    for comp in range(metadata.component):
+        metadata_copy = metadata.copy(comp, metadata.component)
+        metadata_list.append(metadata_copy)
+    return metadata_list
 
 
 def generate_getter(reader, name: str, field: str, full_name: str, unit):
@@ -379,16 +413,16 @@ class VelociraptorCatalogue(object):
         self.invalid_field_paths = []
 
         for path in field_paths:
-            metadata = VelociraptorFieldMetadata(
+            metadata_list = get_path_metadata(
                 self.reader, path, self.registration_functions, self.units
             )
-
-            if metadata.valid:
-                self.valid_field_metadata[
-                    metadata.corresponding_registration_function_name
-                ].append(metadata)
-            else:
-                self.invalid_field_paths.append(path)
+            for metadata in metadata_list:
+                if metadata.valid:
+                    self.valid_field_metadata[
+                        metadata.corresponding_registration_function_name
+                    ].append(metadata)
+                else:
+                    self.invalid_field_paths.append(path)
 
         # For each registration function, we create a dynamic sub-class that
         # contains only that information - otherwise the namespace of the

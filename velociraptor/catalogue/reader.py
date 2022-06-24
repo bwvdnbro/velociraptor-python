@@ -52,9 +52,10 @@ class VelociraptorCatalogueReader:
             handle.visititems(h5ls)
         return h5ls.get_paths()
 
-    def get_unit(self, field):
+    def get_unit_and_shape(self, field):
         with h5py.File(self.filename, "r") as handle:
             unitdict = dict(handle[field].attrs)
+            shape = handle[field].shape
         factor = (
             unitdict["Conversion factor to CGS (including cosmological corrections)"][0]
             * unyt.A ** unitdict["U_I exponent"][0]
@@ -63,26 +64,11 @@ class VelociraptorCatalogueReader:
             * unyt.K ** unitdict["U_T exponent"][0]
             * unyt.s ** unitdict["U_t exponent"][0]
         )
-        return factor.units
+        return factor, shape
 
-    def read_field(self, field, mask, unit):
+    def read_field(self, field, mask, unit, component=None):
         with h5py.File(self.filename, "r") as handle:
-            if self.type == "old":
+            if component is None:
                 return unyt.unyt_array(handle[field][mask], unit)
             else:
-                data = handle[field][mask]
-                unitdict = dict(handle[field].attrs)
-                factor = (
-                    unitdict[
-                        "Conversion factor to CGS (including cosmological corrections)"
-                    ][0]
-                    * unyt.A ** unitdict["U_I exponent"][0]
-                    * unyt.cm ** unitdict["U_L exponent"][0]
-                    * unyt.g ** unitdict["U_M exponent"][0]
-                    * unyt.K ** unitdict["U_T exponent"][0]
-                    * unyt.s ** unitdict["U_t exponent"][0]
-                )
-                factor.convert_to_units(unit)
-                data *= factor
-                data.convert_to_units(unit)
-                return data
+                return unyt.unyt_array(handle[field][mask][:, component], unit)
