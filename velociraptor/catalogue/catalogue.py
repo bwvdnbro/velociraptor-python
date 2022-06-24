@@ -13,6 +13,7 @@ from typing import Union, Callable, List, Dict
 from velociraptor.units import VelociraptorUnits
 from velociraptor.catalogue.derived import DerivedQuantities
 from velociraptor.catalogue.registration import global_registration_functions
+from velociraptor.catalogue.new_registration import register_new_catalogue_quantity
 from velociraptor.exceptions import RegistrationDoesNotMatchError
 from velociraptor.catalogue.reader import VelociraptorCatalogueReader
 
@@ -71,6 +72,13 @@ class VelociraptorFieldMetadata(object):
         """
         Registers the field properties using the registration functions.
         """
+
+        if self.reader.type == "new":
+            self.unit, self.name, self.snake_case = register_new_catalogue_quantity(
+                self.reader, self.path
+            )
+            self.corresponding_registration_function_name = self.path
+            return
 
         for reg_name, reg in self.registration_functions.items():
             try:

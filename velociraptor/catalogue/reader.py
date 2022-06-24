@@ -23,13 +23,17 @@ class VelociraptorCatalogueReader:
                 "vr_basename" in handle["Parameters"].attrs
             ):
                 self.type = "new"
-                self.vr_filename = (
-                    f'{handle["Parameters"].attrs["vr_basename"]}.properties'
-                )
+                snap_nr = handle["Parameters"].attrs["snapshot_nr"]
+                vr_basename = handle["Parameters"].attrs["vr_basename"] % {
+                    "snap_nr": snap_nr
+                }
+                self.vr_filename = f"{vr_basename}.properties"
                 if not os.path.exists(self.vr_filename):
                     self.vr_filename = f"{self.vr_filename}.0"
                     if not os.path.exists(self.vr_filename):
-                        raise RuntimeError("Could not find VR catalogue!")
+                        raise FileNotFoundError(
+                            f"Could not find VR catalogue {self.vr_filename}!"
+                        )
             else:
                 self.type = "old"
                 self.vr_filename = filename
@@ -47,6 +51,19 @@ class VelociraptorCatalogueReader:
         with h5py.File(self.filename, "r") as handle:
             handle.visititems(h5ls)
         return h5ls.get_paths()
+
+    def get_unit(self, field):
+        with h5py.File(self.filename, "r") as handle:
+            unitdict = dict(handle[field].attrs)
+        factor = (
+            unitdict["Conversion factor to CGS (including cosmological corrections)"][0]
+            * unyt.A ** unitdict["U_I exponent"][0]
+            * unyt.cm ** unitdict["U_L exponent"][0]
+            * unyt.g ** unitdict["U_M exponent"][0]
+            * unyt.K ** unitdict["U_T exponent"][0]
+            * unyt.s ** unitdict["U_t exponent"][0]
+        )
+        return factor.units
 
     def read_field(self, field, mask, unit):
         with h5py.File(self.filename, "r") as handle:
