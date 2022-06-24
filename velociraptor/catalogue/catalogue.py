@@ -119,7 +119,7 @@ def get_path_metadata(
 ):
     metadata = VelociraptorFieldMetadata(reader, path, registration_functions, units)
     if metadata.component == 1:
-        metadata.component = 0
+        metadata.component = None
         return [metadata]
     metadata_list = []
     for comp in range(metadata.component):
@@ -128,7 +128,7 @@ def get_path_metadata(
     return metadata_list
 
 
-def generate_getter(reader, name: str, field: str, full_name: str, unit):
+def generate_getter(reader, name: str, field: str, full_name: str, unit, component):
     """
     Generates a function that:
 
@@ -155,7 +155,7 @@ def generate_getter(reader, name: str, field: str, full_name: str, unit):
         else:
             try:
                 mask = getattr(self, "mask")
-                value = reader.read_field(field, mask, unit)
+                value = reader.read_field(field, mask, unit, component)
                 setattr(self, f"_{name}", value)
                 getattr(self, f"_{name}").name = full_name
                 getattr(self, f"_{name}").file = reader.get_name()
@@ -225,7 +225,12 @@ def generate_sub_catalogue(
 
         this_sub_catalogue_dict[metadata.snake_case] = property(
             generate_getter(
-                reader, metadata.snake_case, metadata.path, metadata.name, metadata.unit
+                reader,
+                metadata.snake_case,
+                metadata.path,
+                metadata.name,
+                metadata.unit,
+                metadata.component,
             ),
             generate_setter(metadata.snake_case),
             generate_deleter(metadata.snake_case),

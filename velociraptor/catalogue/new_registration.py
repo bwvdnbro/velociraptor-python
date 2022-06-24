@@ -13,7 +13,7 @@ def get_group_and_name(path):
         return (
             "spherical_overdensities",
             f"{name_group} ({SOname})",
-            f"{name_group}_{SOname}",
+            f"{name_group}_{SOname}".lower(),
         )
     elif path_groups[0] == "ExclusiveSphere":
         aperture_name = path_groups[1]
@@ -21,7 +21,7 @@ def get_group_and_name(path):
         return (
             "apertures",
             f"{name_group} ({aperture_name})",
-            f"{name_group}_{aperture_name}",
+            f"{name_group}_{aperture_name}".lower(),
         )
     elif path_groups[0] == "ProjectedAperture":
         aperture_name = path_groups[1]
@@ -31,7 +31,7 @@ def get_group_and_name(path):
         return (
             "projected_apertures",
             f"{name_group} ({aperture_name} {aperture_projection})",
-            f"{name_group}_{aperture_name}_{aperture_number}",
+            f"{name_group}_{aperture_name}_{aperture_number}".lower(),
         )
     else:
         return "fail_all", path, path.lower().replace("/", "_")
